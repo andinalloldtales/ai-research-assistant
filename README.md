@@ -1,16 +1,31 @@
-# React + Vite
+# ams.dev Research
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An AI-powered research assistant that searches the web and synthesizes results in real time.
 
-Currently, two official plugins are available:
+**Live demo:** https://amsresearch.vercel.app
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## What it does
 
-## React Compiler
+- Takes any question or topic from the user
+- Searches the web via Serper API for current results
+- Passes results to Llama 4 Scout via Groq for summarization
+- Returns a response based on results.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack I used
 
-## Expanding the ESLint configuration
+- React + Vite
+- Groq API (Llama 4 Scout)
+- Serper API (web search)
+- Motion (animations)
+- React Markdown + Syntax Highlighter
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Running locally
+
+1. Clone the repo
+2. Run `npm install`
+3. Create a `.env` file with:
+```
+VITE_GROQ_API_KEY=your_groq_key
+VITE_SERPER_API_KEY=your_serper_key
+```
+4. Run `npm run dev`
