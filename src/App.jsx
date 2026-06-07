@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react"
 import axios from "axios"
 import { motion, AnimatePresence } from "motion/react"
+import ReactMarkdown from "react-markdown"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 
 const App = () => {
   const [query, setQuery] = useState("")
@@ -50,13 +53,12 @@ const App = () => {
   }
 
   return (
-    <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "#f0ede6", fontFamily: "monospace", display: "flex", flexDirection: "column" }}>
-      
-      {/* header */}
-      <div style={{ padding: "24px 32px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>ams.dev / </span>
-        <span style={{ fontSize: "13px", color: "#fff" }}>research</span>
-      </div>
+    <div style={{ background: "transparent", minHeight: "100vh", color: "#f0ede6", fontFamily: "monospace", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
+      <div className="bg" style={{ pointerEvents: "none" }}>
+      <div className="blob blob-1" />
+      <div className="blob blob-2" />
+      <div className="blob blob-3" />
+    </div>
 
       {/* messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "32px", maxWidth: "720px", width: "100%", margin: "0 auto" }}>
@@ -78,14 +80,31 @@ const App = () => {
               <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>
                 {m.role === "user" ? "you" : "ams.dev research"}
               </div>
-              <div style={{
-                fontSize: "14px",
-                lineHeight: "1.7",
-                color: m.role === "user" ? "rgba(255,255,255,0.6)" : "#f0ede6",
-                paddingLeft: m.role === "assistant" ? "12px" : "0",
-                borderLeft: m.role === "assistant" ? "2px solid rgba(255,255,255,0.1)" : "none"
-              }}>
-                {m.content}
+              <div jsxstyle={{
+                  fontSize: "14px",
+                  lineHeight: "1.7",
+                  color: m.role === "user" ? "rgba(255,255,255,0.6)" : "#f0ede6",
+                  paddingLeft: m.role === "assistant" ? "16px" : "0",
+                  borderLeft: m.role === "assistant" ? "2px solid rgba(255,255,255,0.1)" : "none"
+                }}>
+                <ReactMarkdown
+                    components={{
+                      code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || "")
+                        return !inline && match ? (
+                          <SyntaxHighlighter style={oneDark} language={match[1]} PreTag="div" {...props}>
+                            {String(children).replace(/\n$/, "")}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "4px", fontSize: "13px" }} {...props}>
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
+                    {m.content}
+                </ReactMarkdown>
               </div>
             </motion.div>
           ))}
