@@ -60,12 +60,15 @@ const App = () => {
       <div className="blob blob-3" />
     </div>
 
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "24px 32px 0" }}>
+          <h1 style={{ fontSize: "48px", fontStyle: "italic", fontWeight: 700, letterSpacing: "-1px", marginBottom: "12px", fontFamily: "sans-serif" }}>ams</h1>
+      </div>
       {/* messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "32px", maxWidth: "720px", width: "100%", margin: "0 auto" }}>
         {messages.length === 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: "center", marginTop: "120px" }}>
             <p style={{ fontSize: "24px", fontWeight: 600, marginBottom: "8px" }}>What do you want to know?</p>
-            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)" }}>Searches the web and summarizes results using AI</p>
+            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)" }}>I search the web and summarize results.</p>
           </motion.div>
         )}
 
