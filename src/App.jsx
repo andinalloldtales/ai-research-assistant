@@ -53,15 +53,21 @@ const App = () => {
   }
 
   return (
-    <div style={{ background: "transparent", minHeight: "100vh", color: "#f0ede6", fontFamily: "monospace", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
-      <div className="bg" style={{ pointerEvents: "none" }}>
-      <div className="blob blob-1" />
-      <div className="blob blob-2" />
-      <div className="blob blob-3" />
-    </div>
+      <div style={{ background: "transparent", minHeight: "100vh", color: "#f0ede6", fontFamily: "monospace", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
+          <div className="bg" style={{ pointerEvents: "none" }}>
+          <div className="blob blob-1" />
+          <div className="blob blob-2" />
+          <div className="blob blob-3" />
+      </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "24px 32px 0" }}>
-          <h1 style={{ fontSize: "48px", fontStyle: "italic", fontWeight: 700, letterSpacing: "-1px", marginBottom: "12px", fontFamily: "sans-serif" }}>ams</h1>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", padding: "24px 32px 0" }}>
+          <h1 style={{ fontSize: "48px", fontStyle: "italic", fontWeight: 700, letterSpacing: "-1px", marginBottom: "8px", fontFamily: "sans-serif" }}>ams</h1>
+          <a href="https://github.com/andinalloldtales" target="_blank" rel="noreferrer"
+              style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", textDecoration: "none" }}
+              onMouseEnter={e => e.target.style.color = "#fff"}
+              onMouseLeave={e => e.target.style.color = "rgba(255,255,255,0.5)"}>
+              github
+          </a>
       </div>
       {/* messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "32px", maxWidth: "720px", width: "100%", margin: "0 auto" }}>
