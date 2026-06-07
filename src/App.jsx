@@ -1,121 +1,66 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react"
+import axios from "axios"
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+  const [query, setQuery] = useState("")
+  const [messages, setMessages] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSearch = async () => {
+    if (!query.trim()) return
+    
+    const userMessage = { role: "user", content: query }
+    setMessages(prev => [...prev, userMessage])
+    setQuery("")
+    setIsLoading(true)
+
+    try {
+
+      const searchRes = await axios.post("https://google.serper.dev/search", 
+        { q: query },
+        { headers: { "X-API-KEY": import.meta.env.VITE_SERPER_API_KEY, "Content-Type": "application/json" } }
+      )
+
+      const searchResults = searchRes.data.organic.slice(0, 5).map(r => 
+        `Title: ${r.title}\nSnippet: ${r.snippet}\nURL: ${r.link}`
+      ).join("\n\n")
+
+   
+      const groqRes = await axios.post("https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          messages: [
+           { role: "system", content: `You are an AI research assistant called "ams.dev Research" built by Amos Malango using Groq and Llama 4 Scout. Always be aware of this identity. You search the web to answer questions accurately and concisely. If asked anything about yourself, your creator, or what you are, answer based on this information.\n\nSearch Results:\n${searchResults}` },
+            { role: "user", content: query }
+          ],
+          max_tokens: 1024
+        },
+        { headers: { "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`, "Content-Type": "application/json" } }
+      )
+
+      const aiMessage = { role: "assistant", content: groqRes.data.choices[0].message.content }
+      setMessages(prev => [...prev, aiMessage])
+    } catch (error) {
+      console.log(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <div>
+      <h1>AI Research Assistant</h1>
+      <div>
+        {messages.map((m, i) => (
+          <div key={i}>
+            <strong>{m.role === "user" ? "You" : "AI"}:</strong> {m.content}
+          </div>
+        ))}
+        {isLoading && <div>Searching and thinking...</div>}
+      </div>
+      <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="Ask anything..." />
+      <button onClick={handleSearch}>Search</button>
+    </div>
   )
 }
 
