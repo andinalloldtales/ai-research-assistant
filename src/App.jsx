@@ -15,6 +15,8 @@ const App = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isLoading])
 
+ 
+
   const handleSearch = async () => {
     if (!query.trim()) return
     const userMessage = { role: "user", content: query }
@@ -23,30 +25,47 @@ const App = () => {
     setIsLoading(true)
 
     try {
-      const searchRes = await axios.post("https://google.serper.dev/search",
-        { q: query },
-        { headers: { "X-API-KEY": import.meta.env.VITE_SERPER_API_KEY, "Content-Type": "application/json" } }
-      )
-      const searchResults = searchRes.data.organic.slice(0, 5).map(r =>
-        `Title: ${r.title}\nSnippet: ${r.snippet}\nURL: ${r.link}`
-      ).join("\n\n")
+      const isConversational = (query.trim().split(" ").length <= 3 && !query.includes("?")) || /\b(you|your|yourself|who are you|what are you|capabilities|remember|said|earlier|previous|we|our|this chat|this conversation)\b/i.test(query)
+
+      let searchResults = ""
+      let sources = []
+
+      if (!isConversational) {
+        const searchRes = await axios.post("https://google.serper.dev/search",
+          { q: query },
+          { headers: { "X-API-KEY": import.meta.env.VITE_SERPER_API_KEY, "Content-Type": "application/json" } }
+        )
+        searchResults = searchRes.data.organic.slice(0, 5).map(r =>
+          `Title: ${r.title}\nSnippet: ${r.snippet}\nURL: ${r.link}`
+        ).join("\n\n")
+        sources = searchRes.data.organic.slice(0, 5).map(r => ({
+          title: r.title,
+          url: r.link,
+          snippet: r.snippet
+        }))
+      }
 
       const groqRes = await axios.post("https://api.groq.com/openai/v1/chat/completions",
         {
           model: "meta-llama/llama-4-scout-17b-16e-instruct",
-          messages: [
-            { role: "system", content: `You are an AI research assistant called "ams.dev Research" built by Amos Malango using Groq and Llama 4 Scout. Always be aware of this identity. You search the web to answer questions accurately and concisely. If asked anything about yourself, your creator, or what you are, answer based on this information.\n\nSearch Results:\n${searchResults}` },
+         messages: [
+            { role: "system", content: `You are "ams.dev Research", an AI research assistant. You were created and built by Amos Malango, a full stack web developer. This is a fact you must always state confidently when asked. You use Groq and Llama 4 Scout under the hood. You search the web to answer questions accurately and concisely. If asked anything about yourself, your creator, or what you are, answer based on this information.\n\nSearch Results:\n${searchResults}` },
+            ...messages.map(m => ({ role: m.role, content: m.content })),
             { role: "user", content: query }
-          ],
+         ],
           max_tokens: 1024
         },
         { headers: { "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`, "Content-Type": "application/json" } }
       )
 
-      const aiMessage = { role: "assistant", content: groqRes.data.choices[0].message.content }
+      const aiMessage = {
+        role: "assistant",
+        content: groqRes.data.choices[0].message.content,
+        sources
+      }
       setMessages(prev => [...prev, aiMessage])
     } catch (error) {
-      console.log(error)
+        console.error("Full error:", error.response?.data || error.message)
     } finally {
       setIsLoading(false)
     }
@@ -114,6 +133,28 @@ const App = () => {
                   >
                     {m.content}
                 </ReactMarkdown>
+                    
+                    {m.role === "assistant" && m.sources && (
+                    <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {m.sources.map((s, i) => (
+                        <a key={i} href={s.url} target="_blank" rel="noreferrer" style={{
+                          display: "block",
+                          padding: "10px 12px",
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: "6px",
+                          textDecoration: "none",
+                          color: "rgba(255,255,255,0.6)",
+                          fontSize: "12px"
+                        }}>
+                          <div style={{ color: "#f0ede6", marginBottom: "2px" }}>{s.title}</div>
+                          <div style={{ color: "rgba(255,255,255,0.3)" }}>{s.snippet}</div>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+
               </div>
             </motion.div>
           ))}
