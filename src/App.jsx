@@ -67,11 +67,74 @@ const SourceCards = ({ sources }) => {
   )
 }
 
+const WelcomeModal = ({ onClose }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    style={{
+      position: "fixed", inset: 0, zIndex: 100,
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "24px"
+    }}
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 16 }}
+      transition={{ duration: 0.25 }}
+      onClick={e => e.stopPropagation()}
+      style={{
+        background: "#0e0e0e", border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "14px", padding: "32px", maxWidth: "400px", width: "100%"
+      }}
+    >
+      <h2 style={{ fontFamily: "sans-serif", fontStyle: "italic", fontWeight: 700, fontSize: "28px", marginBottom: "6px", letterSpacing: "-0.5px" }}>ams.dev</h2>
+      <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px", marginBottom: "28px" }}>your personal research assistant</p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "28px" }}>
+        {[
+          { icon: "⌕", label: "Web search", desc: "Answers backed by live results" },
+          { icon: "📎", label: "File support", desc: "Upload code, CSVs, PDFs, images" },
+          { icon: "💬", label: "Memory", desc: "Remembers your last 10 messages" },
+          { icon: "▸", label: "Streaming", desc: "Responses appear as they generate" },
+        ].map(({ icon, label, desc }) => (
+          <div key={label} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+            <span style={{ fontSize: "14px", opacity: 0.5, marginTop: "1px", width: "16px", flexShrink: 0 }}>{icon}</span>
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "2px" }}>{label}</div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)" }}>{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={onClose}
+        style={{
+          width: "100%", padding: "10px", background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px",
+          color: "#f0ede6", fontSize: "13px", fontFamily: "monospace",
+          cursor: "pointer", transition: "background 0.2s"
+        }}
+        onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.1)"}
+        onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.06)"}
+      >
+        got it
+      </button>
+    </motion.div>
+  </motion.div>
+)
+
 const App = () => {
+  const [streamingContent, setStreamingContent] = useState("")
   const [query, setQuery] = useState("")
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [file, setFile] = useState(null)
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("ams_welcomed"))
   const fileRef = useRef(null)
   const bottomRef = useRef(null)
 
@@ -84,6 +147,11 @@ const App = () => {
     if (f) setFile(f)
   }
 
+  const handleCloseWelcome = () => {
+    localStorage.setItem("ams_welcomed", "1")
+    setShowWelcome(false)
+  }
+
   const readFileAsText = (f) => new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result)
@@ -91,38 +159,55 @@ const App = () => {
     reader.readAsText(f)
   })
 
+  const readFileAsBase64 = (f) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result.split(",")[1])
+    reader.onerror = reject
+    reader.readAsDataURL(f)
+  })
 
   const handleSearch = async () => {
+    const MEMORY_LIMIT = 10
+    const trimmedMessages = messages.slice(-MEMORY_LIMIT)
     const fileName = file?.name
-      if (!query.trim() && !file) return
+    const currentQuery = query.trim() || "Please analyze the uploaded file."
+    if (!currentQuery && !file) return
 
-      const displayContent = fileName ? `📎 ${fileName}${query.trim() ? `\n${query}` : ""}` : query
-      const userMessage = { role: "user", content: displayContent }
-      setMessages(prev => [...prev, userMessage])
-      setQuery("")
-      setIsLoading(true)
+    const displayContent = fileName ? `📎 ${fileName}${query.trim() ? `\n${query}` : ""}` : query
+    const userMessage = { role: "user", content: displayContent }
+    setMessages(prev => [...prev, userMessage])
+    setQuery("")
+    setIsLoading(true)
 
-      let fileContext = ""
-      if (file) {
-        try {
+    let fileContext = ""
+    let imagePayload = null
+    const isImage = file && file.type.startsWith("image/")
+
+    if (file) {
+      try {
+        if (isImage) {
+          const b64 = await readFileAsBase64(file)
+          imagePayload = { type: "image_url", image_url: { url: `data:${file.type};base64,${b64}` } }
+        } else {
           const text = await readFileAsText(file)
           fileContext = `\n\nThe user has uploaded a file named "${fileName}". Its contents:\n\n${text.slice(0, 8000)}`
-          setFile(null)
-        } catch {
-          fileContext = `\n\nUser uploaded a file named "${fileName}" but it could not be read as text.`
         }
+        setFile(null)
+      } catch {
+        fileContext = `\n\nUser uploaded a file named "${fileName}" but it could not be read.`
       }
+    }
 
     try {
-      const isConversational = (query.trim().split(" ").length <= 3 && !query.includes("?")) ||
-        /\b(you|your|yourself|who are you|what are you|capabilities|remember|said|earlier|previous|we|our|this chat|this conversation)\b/i.test(query)
+      const isConversational = (currentQuery.split(" ").length <= 3 && !currentQuery.includes("?")) ||
+        /\b(you|your|yourself|who are you|what are you|capabilities|remember|said|earlier|previous|we|our|this chat|this conversation)\b/i.test(currentQuery)
 
       let searchResults = ""
       let sources = []
 
-      if (!isConversational && query.trim()) {
+      if (!isConversational && currentQuery !== "Please analyze the uploaded file.") {
         const searchRes = await axios.post("https://google.serper.dev/search",
-          { q: query },
+          { q: currentQuery },
           { headers: { "X-API-KEY": import.meta.env.VITE_SERPER_API_KEY, "Content-Type": "application/json" } }
         )
         searchResults = searchRes.data.organic.slice(0, 5).map(r =>
@@ -133,25 +218,52 @@ const App = () => {
         }))
       }
 
-      const groqRes = await axios.post("https://api.groq.com/openai/v1/chat/completions",
-        {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
           model: "meta-llama/llama-4-scout-17b-16e-instruct",
           messages: [
             { role: "system", content: `${systemPrompt}${fileContext}\n\nSearch Results:\n${searchResults}` },
-            ...messages.map(m => ({ role: m.role, content: m.content })),
-            { role: "user", content: query || `Please analyze the uploaded file.` }
+            ...trimmedMessages.map(m => ({ role: m.role, content: m.content })),
+            {
+              role: "user",
+              content: imagePayload
+                ? [imagePayload, { type: "text", text: currentQuery }]
+                : currentQuery
+            }
           ],
-          max_tokens: 1024
-        },
-        { headers: { "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`, "Content-Type": "application/json" } }
-      )
+          max_tokens: 1024,
+          stream: true
+        })
+      })
 
-      const aiMessage = {
-        role: "assistant",
-        content: groqRes.data.choices[0].message.content,
-        sources
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let fullContent = ""
+      setStreamingContent("")
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n").filter(l => l.startsWith("data: ") && l !== "data: [DONE]")
+        for (const line of lines) {
+          try {
+            const delta = JSON.parse(line.slice(6)).choices[0].delta.content
+            if (delta) {
+              fullContent += delta
+              setStreamingContent(fullContent)
+            }
+          } catch {}
+        }
       }
-      setMessages(prev => [...prev, aiMessage])
+
+      setStreamingContent("")
+      setMessages(prev => [...prev, { role: "assistant", content: fullContent, sources }])
     } catch (error) {
       console.error("Full error:", error.response?.data || error.message)
     } finally {
@@ -171,6 +283,10 @@ const App = () => {
         <div className="blob blob-2" />
         <div className="blob blob-3" />
       </div>
+
+      <AnimatePresence>
+        {showWelcome && <WelcomeModal onClose={handleCloseWelcome} />}
+      </AnimatePresence>
 
       {/* header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 32px 0" }}>
@@ -245,7 +361,18 @@ const App = () => {
           ))}
         </AnimatePresence>
 
-        {isLoading && (
+        {streamingContent && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginBottom: "24px" }}>
+            <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.2)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "8px" }}>
+              ams.dev research
+            </div>
+            <div style={{ paddingLeft: "14px", borderLeft: "1px solid rgba(255,255,255,0.08)", fontSize: "14px", lineHeight: "1.75" }}>
+              <ReactMarkdown>{streamingContent}</ReactMarkdown>
+            </div>
+          </motion.div>
+        )}
+
+        {isLoading && !streamingContent && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginBottom: "24px" }}>
             <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.2)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "10px" }}>
               ams.dev research
@@ -275,7 +402,7 @@ const App = () => {
         )}
 
         <div style={{ display: "flex", gap: "10px", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", padding: "12px 16px" }}>
-          <input ref={fileRef} type="file" style={{ display: "none" }} onChange={handleFile} accept=".txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.py,.html,.css" />
+          <input ref={fileRef} type="file" style={{ display: "none" }} onChange={handleFile} accept=".txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.py,.html,.css,.pdf,image/*" />
           <button onClick={() => fileRef.current.click()} title="Upload file"
             style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.25)", fontSize: "16px", padding: "0", lineHeight: 1, transition: "color 0.2s", flexShrink: 0 }}
             onMouseEnter={e => e.target.style.color = "rgba(255,255,255,0.7)"}
