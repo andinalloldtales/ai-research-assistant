@@ -92,7 +92,7 @@ const WelcomeModal = ({ onClose }) => (
       }}
     >
       <h2 style={{ fontFamily: "sans-serif", fontStyle: "italic", fontWeight: 700, fontSize: "28px", marginBottom: "6px", letterSpacing: "-0.5px" }}>ams.dev</h2>
-      <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px", marginBottom: "28px" }}>your personal research assistant</p>
+      <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px", marginBottom: "28px" }}>your personal research assistant | newest features</p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "28px" }}>
         {[
