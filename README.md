@@ -14,7 +14,7 @@ An AI-powered research assistant that searches the web and synthesizes results i
 ## Tech Stack I used
 
 - React + Vite
-- Groq API (Llama 4 Scout)
+- Groq API (GPT OSS 120B)
 - Serper API (web search)
 - Motion (animations)
 - React Markdown + Syntax Highlighter
