@@ -8,7 +8,7 @@ An AI-powered research assistant that searches the web and synthesizes results i
 
 - Takes any question or topic from the user
 - Searches the web via Serper API for current results
-- Passes results to Llama 4 Scout via Groq for summarization
+- Passes results to PT OSS 120B via Groq for summarization
 - Returns a response based on results.
 
 ## Tech Stack I used
