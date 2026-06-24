@@ -1,10 +1,9 @@
-import { useState, useRef, useEffect } from "react"
-import axios from "axios"
+import { useState, useRef } from "react"
+import { useChat } from "./useChat"
 import { motion, AnimatePresence } from "motion/react"
 import ReactMarkdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import systemPrompt from "./prompt.md?raw"
 
 const CopyButton = ({ text }) => {
   const [copied, setCopied] = useState(false)
@@ -129,151 +128,18 @@ const WelcomeModal = ({ onClose }) => (
 )
 
 const App = () => {
-  const [streamingContent, setStreamingContent] = useState("")
-  const [query, setQuery] = useState("")
-  const [messages, setMessages] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [file, setFile] = useState(null)
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("ams_welcomed"))
   const fileRef = useRef(null)
-  const bottomRef = useRef(null)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, isLoading])
-
-  const handleFile = (e) => {
-    const f = e.target.files[0]
-    if (f) setFile(f)
-  }
+  const { messages, streamingContent, query, setQuery, isLoading, file, setFile, bottomRef, handleSearch, handleClear } = useChat()
 
   const handleCloseWelcome = () => {
     localStorage.setItem("ams_welcomed", "1")
     setShowWelcome(false)
   }
 
-  const readFileAsText = (f) => new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsText(f)
-  })
-
-  const readFileAsBase64 = (f) => new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result.split(",")[1])
-    reader.onerror = reject
-    reader.readAsDataURL(f)
-  })
-
-  const handleSearch = async () => {
-    const MEMORY_LIMIT = 10
-    const trimmedMessages = messages.slice(-MEMORY_LIMIT)
-    const fileName = file?.name
-    const currentQuery = query.trim() || "Please analyze the uploaded file."
-    if (!currentQuery && !file) return
-
-    const displayContent = fileName ? `📎 ${fileName}${query.trim() ? `\n${query}` : ""}` : query
-    const userMessage = { role: "user", content: displayContent }
-    setMessages(prev => [...prev, userMessage])
-    setQuery("")
-    setIsLoading(true)
-
-    let fileContext = ""
-    let imagePayload = null
-    const isImage = file && file.type.startsWith("image/")
-
-    if (file) {
-      try {
-        if (isImage) {
-          const b64 = await readFileAsBase64(file)
-          imagePayload = { type: "image_url", image_url: { url: `data:${file.type};base64,${b64}` } }
-        } else {
-          const text = await readFileAsText(file)
-          fileContext = `\n\nThe user has uploaded a file named "${fileName}". Its contents:\n\n${text.slice(0, 8000)}`
-        }
-        setFile(null)
-      } catch {
-        fileContext = `\n\nUser uploaded a file named "${fileName}" but it could not be read.`
-      }
-    }
-
-    try {
-      const isConversational = (currentQuery.split(" ").length <= 3 && !currentQuery.includes("?")) ||
-        /\b(you|your|yourself|who are you|what are you|capabilities|remember|said|earlier|previous|we|our|this chat|this conversation)\b/i.test(currentQuery)
-
-      let searchResults = ""
-      let sources = []
-
-      if (!isConversational && currentQuery !== "Please analyze the uploaded file.") {
-        const searchRes = await axios.post("https://google.serper.dev/search",
-          { q: currentQuery },
-          { headers: { "X-API-KEY": import.meta.env.VITE_SERPER_API_KEY, "Content-Type": "application/json" } }
-        )
-        searchResults = searchRes.data.organic.slice(0, 5).map(r =>
-          `Title: ${r.title}\nSnippet: ${r.snippet}\nURL: ${r.link}`
-        ).join("\n\n")
-        sources = searchRes.data.organic.slice(0, 5).map(r => ({
-          title: r.title, url: r.link, snippet: r.snippet
-        }))
-      }
-
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-4-scout-17b-16e-instruct",
-          messages: [
-            { role: "system", content: `${systemPrompt}${fileContext}\n\nSearch Results:\n${searchResults}` },
-            ...trimmedMessages.map(m => ({ role: m.role, content: m.content })),
-            {
-              role: "user",
-              content: imagePayload
-                ? [imagePayload, { type: "text", text: currentQuery }]
-                : currentQuery
-            }
-          ],
-          max_tokens: 1024,
-          stream: true
-        })
-      })
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let fullContent = ""
-      setStreamingContent("")
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split("\n").filter(l => l.startsWith("data: ") && l !== "data: [DONE]")
-        for (const line of lines) {
-          try {
-            const delta = JSON.parse(line.slice(6)).choices[0].delta.content
-            if (delta) {
-              fullContent += delta
-              setStreamingContent(fullContent)
-            }
-          } catch {}
-        }
-      }
-
-      setStreamingContent("")
-      setMessages(prev => [...prev, { role: "assistant", content: fullContent, sources }])
-    } catch (error) {
-      console.error("Full error:", error.response?.data || error.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleClear = () => {
-    setMessages([])
-    setFile(null)
+  const handleFile = (e) => {
+    const f = e.target.files[0]
+    if (f) setFile(f)
   }
 
   return (
@@ -435,7 +301,7 @@ const App = () => {
           </button>
         </div>
         <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.15)", marginTop: "10px", textAlign: "center" }}>
-          powered by Groq · Llama 4 Scout · built by <a href="https://ams8dev.vercel.app" style={{ color: "rgba(255,255,255,0.25)", textDecoration: "none" }}>ams.dev</a>
+          powered by Groq · GPT OSS 120B · built by <a href="https://ams8dev.vercel.app" style={{ color: "rgba(255,255,255,0.25)", textDecoration: "none" }}>ams.dev</a>
         </p>
       </div>
     </div>
