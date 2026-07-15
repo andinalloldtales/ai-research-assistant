@@ -5,9 +5,20 @@ export interface Source {
 }
 
 export interface Message {
-  role: "user" | "assistant"
+  role: "user" | "assistant" | "error"
   content: string
   sources?: Source[]
+  retryable?: boolean
+  retryQuery?: string
+}
+
+export interface Thread {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+  preview: string
+  messages: Message[]
 }
 
 export interface ImagePayload {
